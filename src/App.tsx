@@ -134,7 +134,6 @@ export default function App() {
               </div>
               <div>
                 <p className="text-sm font-bold text-dark-100">APPLY</p>
-                <p className="text-xs text-dark-500">AI Job Agent</p>
               </div>
             </div>
           </div>
