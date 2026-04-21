@@ -9,13 +9,14 @@ interface OfferListProps {
   isLoading: boolean
 }
 
-const PLATFORMS = ['all', 'LinkedIn', 'Indeed', 'HelloWork', 'Météojob']
 const STATUSES = ['all', 'new', 'viewed', 'applied']
 
 export const OfferList: React.FC<OfferListProps> = ({ offers, selectedOffer, onSelect, isLoading }) => {
   const [search, setSearch] = useState('')
   const [platformFilter, setPlatformFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+
+  const platforms = ['all', ...Array.from(new Set(offers.map(o => o.platform))).sort()]
 
   const filtered = offers.filter(offer => {
     const matchSearch = !search ||
@@ -70,7 +71,7 @@ export const OfferList: React.FC<OfferListProps> = ({ offers, selectedOffer, onS
             onChange={e => setPlatformFilter(e.target.value)}
             className="input flex-1 text-xs"
           >
-            {PLATFORMS.map(p => (
+            {platforms.map(p => (
               <option key={p} value={p}>{p === 'all' ? 'Toutes les plateformes' : p}</option>
             ))}
           </select>
