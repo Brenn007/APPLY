@@ -1,0 +1,53 @@
+{
+  "name": "apply",
+  "version": "1.0.0",
+  "description": "APPLY - Automated Placement & Letter/cv Yielding agent",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development vite",
+    "start": "cross-env NODE_ENV=development vite",
+    "build": "vite build && electron-builder",
+    "build:vite": "vite build",
+    "build:electron": "tsc --project tsconfig.electron.json",
+    "dist": "vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "typescript",
+    "ai",
+    "job-search"
+  ],
+  "author": "Brenn MAKOUYA",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brenn007/APPLY.git"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.17",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.1.4",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.4.33",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.11",
+    "vite-plugin-electron": "^0.28.4",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "dotenv": "^17.4.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  }
+}
