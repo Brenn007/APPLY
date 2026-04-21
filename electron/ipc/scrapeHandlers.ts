@@ -29,6 +29,40 @@ interface FTApiResponse {
   resultats?: FTOffer[]
 }
 
+// La Bonne Alternance API types
+interface LBAJob {
+  intitule?: string
+  entreprise?: { nom?: string }
+  lieuTravail?: { libelle?: string }
+  description?: string
+  origineOffre?: { urlOrigine?: string }
+  id?: string
+  jobs?: Array<{ romeLabel?: string }>
+  company?: { name?: string }
+  place?: { city?: string }
+  _id?: string
+}
+
+interface LBAResponse {
+  jobs?: {
+    peJobs?: { results?: LBAJob[] }
+    matchas?: { results?: LBAJob[] }
+  }
+}
+
+// Adzuna API types
+interface AdzunaJob {
+  title?: string
+  company?: { display_name?: string }
+  location?: { display_name?: string }
+  description?: string
+  redirect_url?: string
+}
+
+interface AdzunaResponse {
+  results?: AdzunaJob[]
+}
+
 let isScraping = false
 
 export function registerScrapeHandlers(
@@ -66,42 +100,90 @@ export function registerScrapeHandlers(
       const searchDept = (profile.targetDepartment as string) || ''
       const searchKeywords = `${searchTitle} ${searchContract}`.trim()
 
+      const isAlternanceMode = searchContract === 'alternance' || !searchContract
+
       const julesPayload = {
         task: 'scrape-job-offers',
-        platforms: ['france-travail', 'linkedin', 'indeed', 'hellowork'],
+        platforms: isAlternanceMode
+          ? ['france-travail', 'la-bonne-alternance', 'adzuna']
+          : ['adzuna'],
         query: searchKeywords
       }
 
-      // Jules est l'orchestrateur conceptuel — la tâche est loggée en SQLite
-      // L'exécution réelle se fait via l'API France Travail ou les mocks
       if (julesKey) {
-        sendProgress('Jules orchestre la tâche de scraping...', 15)
+        sendProgress('Jules orchestre la tâche de scraping...', 10)
       }
 
       let offers: Offer[] = []
 
-      // --- France Travail API (real data) ---
-      if (!ftClientId || !ftClientSecret) {
+      // Bloquer si alternance et credentials France Travail manquants
+      if (isAlternanceMode && (!ftClientId || !ftClientSecret)) {
         return {
           success: false, count: 0, newOffers: 0,
           message: 'Credentials France Travail manquants. Ajoutez FRANCE_TRAVAIL_CLIENT_ID et FRANCE_TRAVAIL_CLIENT_SECRET dans votre .env.'
         }
       }
 
-      sendProgress('Authentification France Travail...', 20)
-      const token = await getFranceTravailToken(ftClientId, ftClientSecret)
-
       const locationLabel = (profile.targetLocation as string) || 'France'
-      sendProgress(`Recherche d'offres "${searchKeywords}" ${searchDept ? `(dép. ${searchDept})` : `à ${locationLabel}`}...`, 35)
-      const ftOffers = await searchFranceTravailOffers(token, searchKeywords, searchDept)
+      const isAlternance = isAlternanceMode
+      const isStage = searchContract === 'stage'
+      const allSources: string[] = []
 
-      sendProgress(`${ftOffers.length} offres trouvées sur France Travail...`, 60)
-      offers = ftOffers
+      // --- France Travail (alternance uniquement) ---
+      if (isAlternance) {
+        sendProgress('Authentification France Travail...', 15)
+        const token = await getFranceTravailToken(ftClientId, ftClientSecret)
 
-      db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
-        new Date().toISOString(), 'info',
-        `[France Travail] ${ftOffers.length} offres récupérées via API officielle`
-      )
+        sendProgress(`France Travail — recherche "${searchKeywords}" ${searchDept ? `(dép. ${searchDept})` : `à ${locationLabel}`}...`, 25)
+        const ftOffers = await searchFranceTravailOffers(token, searchKeywords, searchDept)
+        offers.push(...ftOffers)
+        allSources.push(`France Travail: ${ftOffers.length}`)
+        db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
+          new Date().toISOString(), 'info',
+          `[France Travail] ${ftOffers.length} offres récupérées`
+        )
+      }
+
+      // --- La Bonne Alternance (alternance uniquement, sans clé API) ---
+      if (isAlternance) {
+        sendProgress('La Bonne Alternance — recherche en cours...', 40)
+        const lbaOffers = await getLaBonneAlternanceOffers(searchTitle, searchDept)
+        offers.push(...lbaOffers)
+        allSources.push(`La Bonne Alternance: ${lbaOffers.length}`)
+        db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
+          new Date().toISOString(), 'info',
+          `[La Bonne Alternance] ${lbaOffers.length} offres récupérées`
+        )
+      }
+
+      // --- Adzuna (alternance + stage) ---
+      const adzunaAppId = process.env.ADZUNA_APP_ID
+      const adzunaAppKey = process.env.ADZUNA_APP_KEY
+      if (adzunaAppId && adzunaAppKey) {
+        sendProgress(`Adzuna — recherche ${isStage ? 'stages' : 'offres'}...`, 60)
+        const adzunaOffers = await getAdzunaOffers(adzunaAppId, adzunaAppKey, searchTitle, searchContract, locationLabel)
+        offers.push(...adzunaOffers)
+        allSources.push(`Adzuna: ${adzunaOffers.length}`)
+        db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
+          new Date().toISOString(), 'info',
+          `[Adzuna] ${adzunaOffers.length} offres récupérées`
+        )
+      } else {
+        db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
+          new Date().toISOString(), 'warn',
+          '[Adzuna] Clés manquantes (ADZUNA_APP_ID / ADZUNA_APP_KEY) — source ignorée'
+        )
+      }
+
+      // Déduplication par URL avant insertion
+      const seenUrls = new Set<string>()
+      offers = offers.filter(o => {
+        if (!o.url || seenUrls.has(o.url)) return false
+        seenUrls.add(o.url)
+        return true
+      })
+
+      sendProgress(`${offers.length} offres uniques trouvées (${allSources.join(', ')})...`, 75)
 
       sendProgress('Mise à jour de la base de données...', 80)
       await delay(200)
@@ -243,6 +325,152 @@ async function searchFranceTravailOffers(token: string, keywords: string, depart
     scraped_at: new Date().toISOString(),
     status: 'new'
   }))
+}
+
+// --- La Bonne Alternance (pas de clé API requise) ---
+async function getLaBonneAlternanceOffers(jobTitle: string, dept: string): Promise<Offer[]> {
+  const rome = getRomeCode(jobTitle)
+  const coords = getDeptCoordinates(dept)
+  if (!coords) {
+    console.log('[LBA] Département non reconnu:', dept)
+    return []
+  }
+
+  const params = new URLSearchParams({
+    romes: rome,
+    latitude: coords.lat.toString(),
+    longitude: coords.lon.toString(),
+    radius: '30',
+    caller: 'apply-app'
+  })
+
+  const response = await fetch(
+    `https://labonnealternance.apprentissage.beta.gouv.fr/api/v1/jobs/jobs?${params}`,
+    { headers: { 'Accept': 'application/json' } }
+  )
+
+  const body = await response.text()
+  console.log(`[LBA] Response (${response.status}):`, body.slice(0, 200))
+  if (!response.ok || !body.trim()) return []
+
+  const data = JSON.parse(body) as LBAResponse
+  const results: Offer[] = []
+
+  for (const job of data?.jobs?.peJobs?.results ?? []) {
+    results.push({
+      title: job.intitule ?? 'Poste non précisé',
+      company: job.entreprise?.nom ?? 'Entreprise non précisée',
+      location: job.lieuTravail?.libelle ?? dept,
+      platform: 'La Bonne Alternance',
+      description: job.description ?? 'Aucune description disponible.',
+      url: job.origineOffre?.urlOrigine
+        ?? `https://labonnealternance.apprentissage.beta.gouv.fr/recherche-emploi?type=peJob&itemId=${job.id}`,
+      scraped_at: new Date().toISOString(),
+      status: 'new'
+    })
+  }
+
+  for (const job of data?.jobs?.matchas?.results ?? []) {
+    const jobTitle = job.jobs?.[0]?.romeLabel ?? 'Alternance'
+    results.push({
+      title: jobTitle,
+      company: job.company?.name ?? 'Entreprise non précisée',
+      location: job.place?.city ?? dept,
+      platform: 'La Bonne Alternance',
+      description: `${jobTitle} — ${job.company?.name ?? ''}`.trim(),
+      url: `https://labonnealternance.apprentissage.beta.gouv.fr/recherche-emploi?type=matcha&itemId=${job._id}`,
+      scraped_at: new Date().toISOString(),
+      status: 'new'
+    })
+  }
+
+  return results
+}
+
+// --- Adzuna (alternance + stage) ---
+async function getAdzunaOffers(
+  appId: string,
+  appKey: string,
+  jobTitle: string,
+  contractType: string,
+  location: string
+): Promise<Offer[]> {
+  const contractKeywords =
+    contractType === 'stage' ? ['stage'] :
+    contractType === 'alternance' ? ['alternance', 'apprentissage'] :
+    ['alternance', 'stage']
+
+  const results: Offer[] = []
+
+  for (const contract of contractKeywords) {
+    const params = new URLSearchParams({
+      app_id: appId,
+      app_key: appKey,
+      what: `${jobTitle} ${contract}`,
+      where: location,
+      results_per_page: '20',
+      'content-type': 'application/json'
+    })
+
+    const response = await fetch(
+      `https://api.adzuna.com/v1/api/jobs/fr/search/1?${params}`,
+      { headers: { 'Accept': 'application/json' } }
+    )
+
+    const body = await response.text()
+    console.log(`[Adzuna/${contract}] Response (${response.status}):`, body.slice(0, 200))
+    if (!response.ok || !body.trim()) continue
+
+    const data = JSON.parse(body) as AdzunaResponse
+    for (const job of data?.results ?? []) {
+      if (!job.redirect_url) continue
+      results.push({
+        title: job.title ?? 'Poste non précisé',
+        company: job.company?.display_name ?? 'Entreprise non précisée',
+        location: job.location?.display_name ?? location,
+        platform: 'Adzuna',
+        description: job.description ?? 'Aucune description disponible.',
+        url: job.redirect_url,
+        scraped_at: new Date().toISOString(),
+        status: 'new'
+      })
+    }
+  }
+
+  return results
+}
+
+// ROME code par titre de poste
+function getRomeCode(title: string): string {
+  const t = title.toLowerCase()
+  if (t.includes('devops') || t.includes('cloud') || t.includes('infra')) return 'M1802'
+  if (t.includes('data') || t.includes('ia') || t.includes('machine learning')) return 'M1805,M1806'
+  if (t.includes('mobile') || t.includes('android') || t.includes('ios')) return 'M1805'
+  return 'M1805' // développement web/logiciel par défaut
+}
+
+// Coordonnées GPS par numéro de département
+function getDeptCoordinates(dept: string): { lat: number; lon: number } | null {
+  const map: Record<string, { lat: number; lon: number }> = {
+    '31': { lat: 43.6047, lon: 1.4442 },  // Toulouse
+    '75': { lat: 48.8566, lon: 2.3522 },  // Paris
+    '69': { lat: 45.7640, lon: 4.8357 },  // Lyon
+    '13': { lat: 43.2965, lon: 5.3698 },  // Marseille
+    '33': { lat: 44.8378, lon: -0.5792 }, // Bordeaux
+    '06': { lat: 43.7102, lon: 7.2620 },  // Nice
+    '34': { lat: 43.6119, lon: 3.8772 },  // Montpellier
+    '67': { lat: 48.5734, lon: 7.7521 },  // Strasbourg
+    '59': { lat: 50.6292, lon: 3.0573 },  // Lille
+    '44': { lat: 47.2184, lon: -1.5536 }, // Nantes
+    '35': { lat: 48.1173, lon: -1.6778 }, // Rennes
+    '38': { lat: 45.1885, lon: 5.7245 },  // Grenoble
+    '76': { lat: 49.4432, lon: 1.0993 },  // Rouen
+    '57': { lat: 49.1193, lon: 6.1757 },  // Metz
+    '54': { lat: 48.6921, lon: 6.1844 },  // Nancy
+    '74': { lat: 45.8992, lon: 6.1294 },  // Annecy
+    '01': { lat: 46.2044, lon: 5.2265 },  // Bourg-en-Bresse
+  }
+  return map[dept] ?? null
 }
 
 function delay(ms: number): Promise<void> {
