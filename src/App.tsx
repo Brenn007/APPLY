@@ -61,7 +61,6 @@ const TitleBar: React.FC = () => {
           <span className="text-white text-xs font-bold leading-none">A</span>
         </div>
         <span className="text-xs font-semibold text-dark-300">APPLY</span>
-        <span className="text-xs text-dark-600 ml-1">— AI Job Agent</span>
       </div>
       <div
         className="flex items-center gap-1"
