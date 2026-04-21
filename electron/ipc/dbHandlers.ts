@@ -45,19 +45,6 @@ function createTables() {
       FOREIGN KEY (offer_id) REFERENCES job_offers(id)
     );
 
-    CREATE TABLE IF NOT EXISTS jules_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      jules_task_id TEXT,
-      task_type TEXT NOT NULL,
-      payload TEXT NOT NULL,
-      status TEXT DEFAULT 'pending',
-      result TEXT,
-      error TEXT,
-      started_at TEXT NOT NULL,
-      completed_at TEXT,
-      duration_ms INTEGER
-    );
-
     CREATE TABLE IF NOT EXISTS logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       timestamp TEXT NOT NULL,
@@ -245,20 +232,6 @@ export function registerDbHandlers() {
       console.error('[DB] set-api-key error:', err)
       throw err
     }
-  })
-
-  // --- Jules Tasks ---
-  ipcMain.handle('jules:get-tasks', (_event, limit: number = 20) => {
-    try {
-      return db.prepare('SELECT * FROM jules_tasks ORDER BY started_at DESC LIMIT ?').all(limit)
-    } catch (err) {
-      console.error('[DB] jules:get-tasks error:', err)
-      return []
-    }
-  })
-
-  ipcMain.handle('jules:get-key-status', () => {
-    return !!process.env.JULES_API_KEY
   })
 
   ipcMain.handle('settings:get-profile', () => {

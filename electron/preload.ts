@@ -77,12 +77,6 @@ const electronAPI = {
   addLog: (level: string, message: string) =>
     ipcRenderer.invoke('db:add-log', level, message),
 
-  // --- Jules ---
-  getJulesTasks: (limit?: number) =>
-    ipcRenderer.invoke('jules:get-tasks', limit),
-  getJulesKeyStatus: () =>
-    ipcRenderer.invoke('jules:get-key-status'),
-
   // --- Scraping ---
   startScraping: () =>
     ipcRenderer.invoke('scrape:start'),

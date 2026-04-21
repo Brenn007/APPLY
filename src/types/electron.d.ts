@@ -31,10 +31,6 @@ interface ElectronAPI {
   getLogs: (limit?: number) => Promise<unknown[]>
   addLog: (level: string, message: string) => Promise<{ success: boolean }>
 
-  // Jules
-  getJulesTasks: (limit?: number) => Promise<unknown[]>
-  getJulesKeyStatus: () => Promise<boolean>
-
   // Scraping
   startScraping: () => Promise<ScrapeResult>
   getScrapeStatus: () => Promise<{ isScraping: boolean }>

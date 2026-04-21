@@ -15,41 +15,10 @@ interface JobOffer {
   status: string
 }
 
-// Persist Jules task record in SQLite (Jules = orchestrateur conceptuel dans le dashboard)
-function saveJulesTask(
-  taskType: string,
-  payload: object,
-  status: string,
-  result: string | null,
-  error: string | null,
-  startedAt: string,
-  durationMs: number
-) {
-  try {
-    const db = getDb()
-    db.prepare(`
-      INSERT INTO jules_tasks (jules_task_id, task_type, payload, status, result, error, started_at, completed_at, duration_ms)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      null,
-      taskType,
-      JSON.stringify(payload),
-      status,
-      result,
-      error,
-      startedAt,
-      new Date().toISOString(),
-      durationMs
-    )
-  } catch (err) {
-    console.error('[Jules] Failed to persist task:', err)
-  }
-}
-
 export function registerAgentHandlers(
   _sendNotification: (title: string, body: string) => void
 ) {
-  // --- Generate tailored CV (Gemini, orchestrated by Jules conceptually) ---
+  // --- Generate tailored CV ---
   ipcMain.handle('agent:generate-cv', async (_event, offerId: number) => {
     const startedAt = new Date().toISOString()
     const startMs = Date.now()
@@ -89,27 +58,22 @@ CONTRAINTES :
       )
 
       const durationMs = Date.now() - startMs
-      saveJulesTask('tailor-cv', { offerId, company: offer.company, position: offer.title }, 'success', content.slice(0, 500), null, startedAt, durationMs)
-
       const filename = `cv-${sanitize(offer.company)}-${formatDate()}.md`
       const filePath = await saveOutput(filename, content)
 
       db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
         new Date().toISOString(), 'info',
-        `[Jules] CV généré pour ${offer.company} — ${offer.title} (${durationMs}ms)`
+        `[Agent] CV généré pour ${offer.company} — ${offer.title} (${durationMs}ms)`
       )
 
       return { success: true, content, filePath }
     } catch (err) {
-      const durationMs = Date.now() - startMs
-      const errMsg = err instanceof Error ? err.message : String(err)
-      saveJulesTask('tailor-cv', { offerId }, 'failed', null, errMsg, startedAt, durationMs)
       console.error('[Agent] generate-cv error:', err)
       return { success: false, content: '', error: errMsg }
     }
   })
 
-  // --- Generate cover letter (Gemini, orchestrated by Jules conceptually) ---
+  // --- Generate cover letter ---
   ipcMain.handle('agent:generate-cover-letter', async (_event, offerId: number) => {
     const startedAt = new Date().toISOString()
     const startMs = Date.now()
@@ -135,21 +99,16 @@ CONTRAINTES :
       )
 
       const durationMs = Date.now() - startMs
-      saveJulesTask('generate-cover-letter', { offerId, company: offer.company, position: offer.title }, 'success', content.slice(0, 500), null, startedAt, durationMs)
-
       const filename = `lm-${sanitize(offer.company)}-${formatDate()}.md`
       const filePath = await saveOutput(filename, content)
 
       db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
         new Date().toISOString(), 'info',
-        `[Jules] Lettre de motivation générée pour ${offer.company} — ${offer.title} (${durationMs}ms)`
+        `[Agent] Lettre de motivation générée pour ${offer.company} — ${offer.title} (${durationMs}ms)`
       )
 
       return { success: true, content, filePath }
     } catch (err) {
-      const durationMs = Date.now() - startMs
-      const errMsg = err instanceof Error ? err.message : String(err)
-      saveJulesTask('generate-cover-letter', { offerId }, 'failed', null, errMsg, startedAt, durationMs)
       console.error('[Agent] generate-cover-letter error:', err)
       return { success: false, content: '', error: errMsg }
     }

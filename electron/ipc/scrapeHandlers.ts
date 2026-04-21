@@ -84,15 +84,13 @@ export function registerScrapeHandlers(
 
     try {
       const db = getDb()
-      sendProgress('Initialisation de l\'agent Jules...', 5)
+      sendProgress('Initialisation du scraping...', 5)
       await delay(300)
 
-      const julesKey = process.env.JULES_API_KEY
       const ftClientId = process.env.FRANCE_TRAVAIL_CLIENT_ID
       const ftClientSecret = process.env.FRANCE_TRAVAIL_CLIENT_SECRET
       const profile = readProfile()
 
-      sendProgress('Envoi de la tâche à Jules...', 10)
       await delay(300)
 
       const searchTitle = (profile.targetTitle as string) || 'développeur'
@@ -101,18 +99,6 @@ export function registerScrapeHandlers(
       const searchKeywords = `${searchTitle} ${searchContract}`.trim()
 
       const isAlternanceMode = searchContract === 'alternance' || !searchContract
-
-      const julesPayload = {
-        task: 'scrape-job-offers',
-        platforms: isAlternanceMode
-          ? ['france-travail', 'la-bonne-alternance', 'adzuna']
-          : ['adzuna'],
-        query: searchKeywords
-      }
-
-      if (julesKey) {
-        sendProgress('Jules orchestre la tâche de scraping...', 10)
-      }
 
       let offers: Offer[] = []
 
@@ -220,20 +206,9 @@ export function registerScrapeHandlers(
 
       const durationMs = Date.now() - startMs
 
-      // Persist Jules task record
-      db.prepare(`
-        INSERT INTO jules_tasks (jules_task_id, task_type, payload, status, result, error, started_at, completed_at, duration_ms)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        null, 'scrape-job-offers', JSON.stringify(julesPayload),
-        'success',
-        `${totalNew} nouvelles offres sur ${offers.length} analysées`,
-        null, startedAt, new Date().toISOString(), durationMs
-      )
-
       db.prepare('INSERT INTO logs (timestamp, level, message) VALUES (?, ?, ?)').run(
         new Date().toISOString(), 'info',
-        `[Jules] Scraping terminé — ${offers.length} offres analysées, ${totalNew} nouvelles (${durationMs}ms)`
+        `[Agent] Scraping terminé — ${offers.length} offres analysées, ${totalNew} nouvelles (${durationMs}ms)`
       )
 
       sendProgress('Scraping terminé !', 100)
