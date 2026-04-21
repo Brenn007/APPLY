@@ -1,0 +1,14 @@
+{
+  "id": "apply",
+  "name": "APPLY",
+  "description": "Automated Placement & Letter/cv Yielding agent",
+  "version": "1.0.0",
+  "targetPlatforms": ["linkedin", "indeed", "hellowork", "meteojob"],
+  "searchQuery": "alternance développeur React TypeScript",
+  "location": "Toulouse",
+  "radius": 30,
+  "contractType": "alternance",
+  "autoApply": false,
+  "aiModel": "claude-sonnet-4-20250514",
+  "alertAfterDays": 7
+}
