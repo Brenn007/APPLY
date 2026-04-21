@@ -23,10 +23,12 @@ function createTables() {
       location TEXT NOT NULL,
       platform TEXT NOT NULL,
       description TEXT NOT NULL,
-      url TEXT NOT NULL,
+      url TEXT NOT NULL UNIQUE,
       scraped_at TEXT NOT NULL,
       status TEXT DEFAULT 'new'
     );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_job_offers_url ON job_offers(url);
 
     CREATE TABLE IF NOT EXISTS applications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

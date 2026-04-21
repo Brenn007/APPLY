@@ -106,26 +106,25 @@ export function registerScrapeHandlers(
       sendProgress('Mise à jour de la base de données...', 80)
       await delay(200)
 
-      // Supprimer les offres "new" non liées à une candidature (résultats du scraping précédent)
+      // Supprimer toutes les offres non liées à une candidature (new + viewed)
+      // pour que chaque scraping présente un résultat frais sans doublons
       db.prepare(`
         DELETE FROM job_offers
-        WHERE status = 'new'
+        WHERE status IN ('new', 'viewed')
         AND id NOT IN (SELECT DISTINCT offer_id FROM applications WHERE offer_id IS NOT NULL)
       `).run()
 
       let totalNew = 0
+      const insertOffer = db.prepare(`
+        INSERT OR IGNORE INTO job_offers (title, company, location, platform, description, url, scraped_at, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `)
       for (const offer of offers) {
-        const existing = db.prepare('SELECT id FROM job_offers WHERE url = ?').get(offer.url)
-        if (!existing) {
-          db.prepare(`
-            INSERT INTO job_offers (title, company, location, platform, description, url, scraped_at, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            offer.title, offer.company, offer.location, offer.platform,
-            offer.description, offer.url, new Date().toISOString(), 'new'
-          )
-          totalNew++
-        }
+        const result = insertOffer.run(
+          offer.title, offer.company, offer.location, offer.platform,
+          offer.description, offer.url, new Date().toISOString(), 'new'
+        )
+        if (result.changes > 0) totalNew++
       }
 
       const durationMs = Date.now() - startMs
