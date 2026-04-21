@@ -188,6 +188,15 @@ export function registerScrapeHandlers(
       sendProgress('Mise à jour de la base de données...', 80)
       await delay(200)
 
+      // Supprimer les offres de plateformes dépréciées non liées à une candidature
+      const DEPRECATED_PLATFORMS = ['LinkedIn', 'Indeed', 'HelloWork', 'Météojob', 'Meteojob']
+      const placeholders = DEPRECATED_PLATFORMS.map(() => '?').join(', ')
+      db.prepare(`
+        DELETE FROM job_offers
+        WHERE platform IN (${placeholders})
+        AND id NOT IN (SELECT DISTINCT offer_id FROM applications WHERE offer_id IS NOT NULL)
+      `).run(...DEPRECATED_PLATFORMS)
+
       // Supprimer toutes les offres non liées à une candidature (new + viewed)
       // pour que chaque scraping présente un résultat frais sans doublons
       db.prepare(`
