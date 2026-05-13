@@ -215,9 +215,4 @@ Inclut : prénom, nom, email, téléphone, école, niveau, poste recherché, dis
 
 ## Auteur
 
-**Brenn MAKOUYA** — Bachelor 3 Informatique, Ynov Campus Toulouse
-GitHub : [github.com/Brenn007](https://github.com/Brenn007)
-
----
-
-*Projet réalisé dans le cadre de la recherche d'alternance pour le Mastère 1 — 2026*
+**Brenn MAKOUYA**
