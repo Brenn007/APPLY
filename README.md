@@ -1,218 +1,218 @@
 # APPLY — Automated Placement & Letter/cv Yielding agent
 
-Application desktop Electron + React + TypeScript qui assiste les étudiants dans leur recherche d'alternance en récupérant des offres réelles, en adaptant le CV et en générant des lettres de motivation personnalisées via l'IA.
+Electron + React + TypeScript desktop application that helps students in their work-study (apprenticeship/internship) job search by fetching real job postings, tailoring the resume, and generating personalized cover letters using AI.
 
 ---
 
-## Présentation
+## Overview
 
-APPLY est un assistant de candidature intelligent qui :
-1. **Récupère** les offres d'alternance réelles depuis l'API officielle France Travail (Pôle Emploi)
-2. **Adapte** votre CV à chaque offre sélectionnée via l'IA (Groq — Llama 3.3 70B)
-3. **Génère** une lettre de motivation personnalisée pour chaque offre
-4. **Suit** vos candidatures dans un tableau Kanban interactif
-5. **Orchestre** les tâches via Jules (Google) comme moteur d'exécution autonome
+APPLY is a smart application assistant that:
+1. **Fetches** real work-study job postings from the official France Travail (Pôle Emploi) API
+2. **Tailors** your resume to each selected posting using AI (Groq — Llama 3.3 70B)
+3. **Generates** a personalized cover letter for each posting
+4. **Tracks** your applications on an interactive Kanban board
+5. **Orchestrates** tasks via Jules (Google) as an autonomous execution engine
 
-> APPLY n'est **pas** un bot qui postule à votre place (`autoApply: false`). Il vous fournit les documents personnalisés pour que vous postuliez vous-même, avec le meilleur dossier possible.
+> APPLY is **not** a bot that applies on your behalf (`autoApply: false`). It provides you with tailored documents so you can apply yourself, with the best possible application package.
 
 ---
 
-## Stack technique
+## Tech stack
 
-| Couche | Technologies |
+| Layer | Technologies |
 |--------|-------------|
 | Desktop | Electron 28, IPC, contextBridge, System Tray |
-| Frontend | React 18, TypeScript strict, Tailwind CSS, Vite |
-| Persistance | SQLite (better-sqlite3) |
-| IA | Groq API — `llama-3.3-70b-versatile` (gratuit) |
-| Scraping | API France Travail v2 (OAuth2, officielle) |
-| Orchestration | Jules (Google) — agent IA autonome |
-| Architecture | MVC — séparation UI / Logique / Données |
+| Frontend | React 18, strict TypeScript, Tailwind CSS, Vite |
+| Persistence | SQLite (better-sqlite3) |
+| AI | Groq API — `llama-3.3-70b-versatile` (free) |
+| Scraping | France Travail API v2 (official OAuth2) |
+| Orchestration | Jules (Google) — autonomous AI agent |
+| Architecture | MVC — separation of UI / Logic / Data |
 
 ---
 
 ## Installation
 
-### Prérequis
+### Prerequisites
 - Node.js 20+
 - npm 10+
-- Clé API Groq gratuite — [console.groq.com](https://console.groq.com)
-- Credentials France Travail — [francetravail.io/data/api](https://francetravail.io/data/api)
-- Clé Jules (optionnel) — [jules.google.com](https://jules.google.com)
+- Free Groq API key — [console.groq.com](https://console.groq.com)
+- France Travail credentials — [francetravail.io/data/api](https://francetravail.io/data/api)
+- Jules key (optional) — [jules.google.com](https://jules.google.com)
 
-### Étapes
+### Steps
 
 ```bash
-# 1. Cloner le dépôt
+# 1. Clone the repository
 git clone https://github.com/Brenn007/APPLY.git
 cd APPLY
 
-# 2. Installer les dépendances
+# 2. Install dependencies
 npm install
 
-# 3. Recompiler better-sqlite3 pour Electron
+# 3. Rebuild better-sqlite3 for Electron
 npx electron-rebuild -f -w better-sqlite3
 
-# 4. Configurer les variables d'environnement
+# 4. Configure environment variables
 cp .env.example .env
-# Renseigner les clés dans .env (voir section Configuration)
+# Fill in the keys in .env (see Configuration section)
 
-# 5. Lancer en mode développement
+# 5. Run in development mode
 npm start
 
-# 6. Builder l'application
+# 6. Build the application
 npm run build
 ```
 
 ---
 
-## Architecture MVC
+## MVC Architecture
 
 ```
 APPLY/
 ├── electron/                     # MAIN PROCESS (Node.js)
-│   ├── main.ts                   # Point d'entrée — fenêtre, tray, dotenv, lifecycle
-│   ├── preload.ts                # Bridge sécurisé — expose electronAPI via contextBridge
+│   ├── main.ts                   # Entry point — window, tray, dotenv, lifecycle
+│   ├── preload.ts                # Secure bridge — exposes electronAPI via contextBridge
 │   └── ipc/
-│       ├── dbHandlers.ts         # Modèle — SQLite CRUD (offres, candidatures, logs, jules_tasks)
-│       ├── scrapeHandlers.ts     # Contrôleur — Scraping via API France Travail
-│       └── agentHandlers.ts      # Contrôleur — Génération IA via Groq
+│       ├── dbHandlers.ts         # Model — SQLite CRUD (offers, applications, logs, jules_tasks)
+│       ├── scrapeHandlers.ts     # Controller — Scraping via the France Travail API
+│       └── agentHandlers.ts      # Controller — AI generation via Groq
 │
 ├── src/                          # RENDERER PROCESS (React)
-│   ├── App.tsx                   # Vue racine — navigation, layout, titlebar
+│   ├── App.tsx                   # Root view — navigation, layout, titlebar
 │   ├── views/
-│   │   ├── Dashboard.tsx         # Statistiques, statut Jules, journal d'activité
-│   │   ├── OffersView.tsx        # Liste des offres + génération CV/lettre
-│   │   ├── ApplicationsView.tsx  # Tableau Kanban des candidatures
-│   │   └── SettingsView.tsx      # Configuration clés API, profil étudiant
+│   │   ├── Dashboard.tsx         # Statistics, Jules status, activity log
+│   │   ├── OffersView.tsx        # Job listing + resume/letter generation
+│   │   ├── ApplicationsView.tsx  # Kanban board of applications
+│   │   └── SettingsView.tsx      # API key configuration, student profile
 │   ├── components/
-│   │   ├── OfferCard.tsx         # Carte d'offre d'emploi
-│   │   ├── OfferList.tsx         # Liste filtrée d'offres
-│   │   ├── CvPreview.tsx         # Prévisualisation du CV généré
-│   │   ├── CoverLetterPreview.tsx # Prévisualisation de la lettre
-│   │   ├── StatusBadge.tsx       # Badges de statut et plateforme
-│   │   └── KanbanBoard.tsx       # Kanban avec drag & drop natif
+│   │   ├── OfferCard.tsx         # Job posting card
+│   │   ├── OfferList.tsx         # Filtered list of postings
+│   │   ├── CvPreview.tsx         # Preview of the generated resume
+│   │   ├── CoverLetterPreview.tsx # Preview of the cover letter
+│   │   ├── StatusBadge.tsx       # Status and platform badges
+│   │   └── KanbanBoard.tsx       # Kanban with native drag & drop
 │   ├── store/
-│   │   └── applyStore.ts         # Store global (module-level state + hooks React)
+│   │   └── applyStore.ts         # Global store (module-level state + React hooks)
 │   └── types/
-│       └── electron.d.ts         # Types TypeScript pour window.electronAPI
+│       └── electron.d.ts         # TypeScript types for window.electronAPI
 │
 ├── agents-config/
-│   └── apply.json                # Configuration de l'agent
+│   └── apply.json                # Agent configuration
 ├── user-profile/
-│   ├── cv-base.md                # CV de base en markdown
-│   └── profile.json              # Profil étudiant (email, téléphone, compétences...)
+│   ├── cv-base.md                # Base resume in markdown
+│   └── profile.json              # Student profile (email, phone, skills...)
 └── mocks/
-    └── job-offers.json           # 15 offres de fallback (si France Travail indisponible)
+    └── job-offers.json           # 15 fallback postings (if France Travail is unavailable)
 ```
 
-### Règles d'architecture
+### Architecture rules
 
-- **Le renderer ne touche jamais à Node.js** — toute communication passe par `window.electronAPI` (contextBridge)
-- **Zéro UI freeze** — scraping, appels IA et SQLite s'exécutent dans le main process via IPC
-- **TypeScript strict** — aucun `any`, tous les composants et handlers sont typés
-- **Séparation des responsabilités** — chaque IPC handler a une responsabilité unique
-- **Fallback automatique** — si France Travail est indisponible, les mocks prennent le relais sans planter
+- **The renderer never touches Node.js directly** — all communication goes through `window.electronAPI` (contextBridge)
+- **Zero UI freeze** — scraping, AI calls, and SQLite operations run in the main process via IPC
+- **Strict TypeScript** — no `any`, all components and handlers are typed
+- **Separation of concerns** — each IPC handler has a single responsibility
+- **Automatic fallback** — if France Travail is unavailable, the mocks take over without crashing
 
 ---
 
-## Fonctionnalités
+## Features
 
-### Récupération des offres (France Travail)
-- Appels à l'API officielle France Travail v2 (OAuth2 client credentials)
-- Recherche d'offres d'alternance développeur dans le département 31 (Toulouse)
-- Déduplication automatique par URL en SQLite
-- Fallback sur les 15 offres mockées si les credentials sont absents
-- Barre de progression temps réel via IPC events
-- Filtres dans l'interface : plateforme, statut
+### Fetching postings (France Travail)
+- Calls to the official France Travail API v2 (OAuth2 client credentials)
+- Searches for developer work-study postings in department 31 (Toulouse)
+- Automatic deduplication by URL in SQLite
+- Falls back to 15 mocked postings if credentials are missing
+- Real-time progress bar via IPC events
+- UI filters: platform, status
 
-### Adaptation de CV
-- Lecture de `user-profile/cv-base.md` + `user-profile/profile.json`
-- Les coordonnées à jour (email, téléphone) sont injectées dans le prompt
-- Génération via Groq (Llama 3.3 70B) avec prompt RH optimisé
-- Prévisualisation Markdown dans l'interface
-- Boutons Copier et Sauvegarder (`outputs/cv-[company]-[date].md`)
+### Resume tailoring
+- Reads `user-profile/cv-base.md` + `user-profile/profile.json`
+- Up-to-date contact details (email, phone) are injected into the prompt
+- Generation via Groq (Llama 3.3 70B) with an HR-optimized prompt
+- Markdown preview in the UI
+- Copy and Save buttons (`outputs/cv-[company]-[date].md`)
 
-### Génération de lettre de motivation
-- Personnalisation : prénom/nom, entreprise, poste exact, valeurs détectées
-- Email et téléphone du profil utilisés automatiquement
-- Ton sobre et professionnel, 350 mots maximum
-- Sauvegarde dans `outputs/lm-[company]-[date].md`
+### Cover letter generation
+- Personalization: first/last name, company, exact job title, detected values
+- Profile email and phone used automatically
+- Sober, professional tone, 350 words maximum
+- Saved to `outputs/lm-[company]-[date].md`
 
-### Suivi Kanban
-- 6 colonnes : Brouillon → Envoyée → Vue → Entretien → Refusée → Acceptée
-- Drag & drop natif entre colonnes (sans dépendance externe)
-- Alerte visuelle orange après +7 jours sans réponse sur une candidature envoyée
-- Notes libres éditables sur chaque candidature
+### Kanban tracking
+- 6 columns: Draft → Sent → Viewed → Interview → Rejected → Accepted
+- Native drag & drop between columns (no external dependency)
+- Orange visual alert after 7+ days without a response on a sent application
+- Free-form editable notes on each application
 
-### Dashboard Jules
-- Statut de connexion Jules (connecté / non configuré)
-- Tâche en cours avec loader animé
-- Quota journalier (15 tâches/jour sur le plan gratuit)
-- Historique des dernières tâches exécutées (type, statut, durée)
+### Jules Dashboard
+- Jules connection status (connected / not configured)
+- Current task with animated loader
+- Daily quota (15 tasks/day on the free plan)
+- History of recently executed tasks (type, status, duration)
 
 ### System Tray
-- Icône APPLY dans la zone de notification Windows
-- Menu contextuel : Ouvrir | Lancer le scraping | Quitter
-- Notifications natives (nouvelles offres trouvées, candidatures en attente)
+- APPLY icon in the Windows notification area
+- Context menu: Open | Start scraping | Quit
+- Native notifications (new postings found, pending applications)
 
 ---
 
-## Base de données SQLite
+## SQLite database
 
-Stockée dans `%APPDATA%/apply/apply.db` (Windows).
+Stored in `%APPDATA%/apply/apply.db` (Windows).
 
 ```sql
-job_offers    -- Offres récupérées via France Travail, avec statut et métadonnées
-applications  -- Candidatures liées aux offres (Kanban)
-jules_tasks   -- Historique des tâches orchestrées (scraping, CV, lettre)
-logs          -- Journal d'activité de l'agent
-settings      -- Clé API et configuration locale
+job_offers    -- Postings fetched from France Travail, with status and metadata
+applications  -- Applications linked to postings (Kanban)
+jules_tasks   -- History of orchestrated tasks (scraping, resume, letter)
+logs          -- Agent activity log
+settings      -- API key and local configuration
 ```
 
 ---
 
 ## Configuration
 
-Créez un fichier `.env` à la racine (copié depuis `.env.example`) :
+Create a `.env` file at the project root (copied from `.env.example`):
 
 ```env
-# Jules (Google) — Orchestrateur de tâches autonome
+# Jules (Google) — Autonomous task orchestrator
 JULES_API_KEY=AQ.xxx...
 
-# Groq — Génération IA gratuite (Llama 3.3 70B)
-# Inscription : https://console.groq.com → "Create API Key"
+# Groq — Free AI generation (Llama 3.3 70B)
+# Sign up: https://console.groq.com → "Create API Key"
 GROQ_API_KEY=gsk_...
 
-# France Travail — Scraping d'offres réelles
-# Inscription : https://francetravail.io/data/api → créer une application
-# → ajouter l'API "Offres d'emploi v2"
+# France Travail — Scraping real job postings
+# Sign up: https://francetravail.io/data/api → create an application
+# → add the "Offres d'emploi v2" API
 FRANCE_TRAVAIL_CLIENT_ID=
 FRANCE_TRAVAIL_CLIENT_SECRET=
 ```
 
-La clé Groq peut aussi être saisie directement dans **Paramètres → Clé API Groq** de l'application (stockée en SQLite, jamais exposée au renderer).
+The Groq key can also be entered directly in **Settings → Groq API Key** in the application (stored in SQLite, never exposed to the renderer).
 
-### Profil étudiant
-Éditable dans **Paramètres → Profil étudiant** ou directement dans `user-profile/profile.json`.
-Inclut : prénom, nom, email, téléphone, école, niveau, poste recherché, disponibilité.
-
----
-
-## Workflow recommandé
-
-1. **Lancer le scraping** → les offres France Travail s'affichent dans l'onglet Offres
-2. **Sélectionner une offre** → lire la description
-3. **Adapter le CV** → l'IA génère une version ciblée → Copier/Sauvegarder
-4. **Générer la lettre** → lettre personnalisée avec tes coordonnées → Copier/Sauvegarder
-5. **Postuler manuellement** sur le site de l'entreprise avec tes documents
-6. **Créer une candidature** → elle apparaît dans le Kanban en "Brouillon"
-7. **Déplacer vers "Envoyée"** une fois la candidature envoyée
-8. **Suivre l'évolution** → déplacer au fil des retours (Vue, Entretien, etc.)
-9. **Alertes automatiques** → si pas de réponse après 7 jours
+### Student profile
+Editable in **Settings → Student Profile** or directly in `user-profile/profile.json`.
+Includes: first name, last name, email, phone, school, education level, target position, availability.
 
 ---
 
-## Auteur
+## Recommended workflow
+
+1. **Start scraping** → France Travail postings appear in the Offers tab
+2. **Select a posting** → read the description
+3. **Tailor the resume** → the AI generates a targeted version → Copy/Save
+4. **Generate the letter** → personalized letter with your contact details → Copy/Save
+5. **Apply manually** on the company's website with your documents
+6. **Create an application** → it appears on the Kanban board as "Draft"
+7. **Move it to "Sent"** once the application has been sent
+8. **Track progress** → move it along as you get updates (Viewed, Interview, etc.)
+9. **Automatic alerts** → if there's no response after 7 days
+
+---
+
+## Author
 
 **Brenn MAKOUYA**
